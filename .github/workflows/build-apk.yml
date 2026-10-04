@@ -1,0 +1,50 @@
+name: Build PhonePilot APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-apk.yml"
+      - "phonepilot (3).zip"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download project
+        uses: actions/checkout@v4
+
+      - name: Extract PhonePilot
+        run: |
+          mkdir -p phonepilot-project
+          unzip -q "phonepilot (3).zip" -d phonepilot-project
+
+      - name: Find Android project
+        run: |
+          ROOT=$(find phonepilot-project -name settings.gradle.kts -o -name settings.gradle | head -n 1 | xargs dirname)
+          echo "PROJECT_ROOT=$ROOT" >> "$GITHUB_ENV"
+          echo "Android project found at: $ROOT"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Build debug APK
+        working-directory: ${{ env.PROJECT_ROOT }}
+        run: |
+          gradle :app:assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhonePilot-APK
+          path: ${{ env.PROJECT_ROOT }}/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
